@@ -1,0 +1,275 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+<title>Catálogo de Capuchones</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#eef1f5;
+margin:0;
+}
+
+header{
+background:#1e2a38;
+color:white;
+padding:20px;
+text-align:center;
+}
+
+.controls{
+display:flex;
+justify-content:center;
+gap:10px;
+padding:20px;
+flex-wrap:wrap;
+}
+
+input{
+padding:10px;
+font-size:16px;
+width:220px;
+}
+
+button{
+padding:10px 20px;
+border:none;
+background:#2c7be5;
+color:white;
+cursor:pointer;
+border-radius:5px;
+}
+
+.catalogo{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+gap:20px;
+padding:20px;
+}
+
+.card{
+background:white;
+border-radius:10px;
+box-shadow:0 4px 10px rgba(0,0,0,0.1);
+padding:10px;
+text-align:center;
+}
+
+.img-container{
+width:100%;
+height:220px;
+display:flex;
+align-items:center;
+justify-content:center;
+overflow:hidden;
+}
+
+.img-container img{
+max-width:100%;
+max-height:100%;
+object-fit:contain;
+cursor:pointer;
+}
+
+.modal{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.8);
+justify-content:center;
+align-items:center;
+}
+
+.modal img{
+max-width:80%;
+max-height:80%;
+}
+
+.close{
+position:absolute;
+top:20px;
+right:40px;
+font-size:30px;
+color:white;
+cursor:pointer;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+<h1>📦 Catálogo de Capuchones</h1>
+</header>
+
+<div class="controls">
+
+<input type="text" id="buscador" placeholder="Buscar...">
+
+<button onclick="mostrarBodega('todas')">Todas</button>
+<button onclick="mostrarBodega('b1')">Bodega 1</button>
+<button onclick="mostrarBodega('b2')">Bodega 2</button>
+
+</div>
+
+<div id="contador" style="text-align:center;font-weight:bold;"></div>
+
+<div class="catalogo" id="catalogo"></div>
+
+<div class="modal" id="modal">
+<span class="close" onclick="cerrar()">✖</span>
+<img id="imagenGrande">
+</div>
+
+<script>
+
+const catalogo = document.getElementById("catalogo")
+
+const bodega1 = 26
+const bodega2 = 45
+
+function crearImagenes(){
+
+for(let i=1;i<=bodega1;i++){
+crearCard("bodega1", i, "b1")
+}
+
+for(let i=1;i<=bodega2;i++){
+crearCard("bodega2", i, "b2")
+}
+
+}
+
+function crearCard(carpeta, numero, clase){
+
+let card = document.createElement("div")
+card.className = "card " + clase
+
+let container = document.createElement("div")
+container.className = "img-container"
+
+let img = document.createElement("img")
+
+img.src = `${carpeta}/foto${numero}.jpg`
+
+img.onerror = function(){
+
+if(this.src.includes(".jpg")){
+this.src = `${carpeta}/foto${numero}.jpeg`
+}
+
+else if(this.src.includes(".jpeg")){
+this.src = `${carpeta}/foto${numero}.JPG`
+}
+
+else if(this.src.includes(".JPG")){
+this.src = `${carpeta}/foto${numero}.png`
+}
+
+}
+
+img.onclick = function(){
+abrir(this)
+}
+
+container.appendChild(img)
+
+card.appendChild(container)
+
+catalogo.appendChild(card)
+
+}
+
+crearImagenes()
+
+const buscador = document.getElementById("buscador")
+
+buscador.addEventListener("keyup", function(){
+
+let texto = buscador.value.toLowerCase()
+let cards = document.querySelectorAll(".card")
+
+cards.forEach(c=>{
+
+let nombre = c.innerText.toLowerCase()
+
+if(nombre.includes(texto)){
+c.style.display="block"
+}else{
+c.style.display="none"
+}
+
+})
+
+actualizarContador()
+
+})
+
+function mostrarBodega(bodega){
+
+let cards = document.querySelectorAll(".card")
+
+cards.forEach(c=>{
+
+if(bodega==="todas"){
+c.style.display="block"
+}
+else if(c.classList.contains(bodega)){
+c.style.display="block"
+}
+else{
+c.style.display="none"
+}
+
+})
+
+actualizarContador()
+
+}
+
+function abrir(img){
+
+document.getElementById("modal").style.display="flex"
+document.getElementById("imagenGrande").src = img.src
+
+}
+
+function cerrar(){
+
+document.getElementById("modal").style.display="none"
+
+}
+
+function actualizarContador(){
+
+let cards = document.querySelectorAll(".card")
+let visibles = 0
+
+cards.forEach(c=>{
+if(c.style.display !== "none"){
+visibles++
+}
+})
+
+document.getElementById("contador").innerText =
+"Cajas mostradas: " + visibles
+
+}
+
+setTimeout(actualizarContador,500)
+
+</script>
+
+</body>
+</html>
+```
