@@ -480,8 +480,17 @@ onAuthStateChanged(auth, async (user) => {
     currentUser = user;
     try {
       const snap = await getDoc(doc(db, 'users', user.uid));
-      currentRole = snap.exists() ? (snap.data().role || 'operario') : 'operario';
-    } catch { currentRole = 'operario'; }
+      console.log('Firestore snap exists:', snap.exists(), 'data:', snap.data());
+      if (snap.exists() && snap.data().role === 'admin') {
+        currentRole = 'admin';
+      } else {
+        currentRole = 'operario';
+      }
+    } catch(e) {
+      console.error('Error leyendo rol:', e.code, e.message);
+      currentRole = 'operario';
+    }
+    console.log('UID:', user.uid, 'Role:', currentRole);
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
     document.getElementById('user-name-display').textContent = user.email;
