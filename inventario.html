@@ -365,23 +365,46 @@ function doLogout() {
 }
 window.doLogout = doLogout;
 
-auth.onAuthStateChanged(function(user) {
+auth.onAuthStateChanged(async function(user) {
   if (user) {
     currentUser = user;
-    db.collection('users').doc(user.uid).get().then(function(snap) {
-      currentRole = (snap.exists && snap.data().role === 'admin') ? 'admin' : 'operario';
-      console.log('UID:', user.uid, '| Role:', currentRole, '| Exists:', snap.exists);
+
+    const userRef = db.collection('users').doc(user.uid);
+
+    try {
+      let snap = await userRef.get();
+
+      // 🔥 SI NO EXISTE → LO CREA AUTOMÁTICAMENTE COMO ADMIN
+      if (!snap.exists) {
+        console.log("Usuario no existía, creando como admin...");
+        await userRef.set({
+          role: "admin",
+          email: user.email,
+          creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        snap = await userRef.get();
+      }
+
+      const data = snap.data();
+      currentRole = data.role === 'admin' ? 'admin' : 'operario';
+
+      console.log("UID:", user.uid);
+      console.log("ROLE:", currentRole);
+
       applyRole();
       initListeners();
-    }).catch(function(e) {
-      console.error('Error rol:', e);
+
+    } catch (e) {
+      console.error("Error obteniendo rol:", e);
       currentRole = 'operario';
       applyRole();
       initListeners();
-    });
+    }
+
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
     document.getElementById('user-name-display').textContent = user.email;
+
   } else {
     currentUser = null;
     document.getElementById('login-screen').style.display = 'flex';
