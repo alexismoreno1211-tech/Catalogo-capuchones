@@ -391,7 +391,7 @@ auth.onAuthStateChanged(async function(user) {
     const userRef = db.collection('users').doc(user.uid);
 
     try {
-      // 🔥 FORZAR ADMIN SIEMPRE
+      // 🔥 FORZAR ADMIN (como lo quieres)
       await userRef.set({
         role: "admin",
         email: user.email
@@ -416,68 +416,14 @@ auth.onAuthStateChanged(async function(user) {
 
   } else {
     currentUser = null;
+
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app-screen').style.display = 'none';
+
     document.getElementById('btn-login').innerHTML = 'Ingresar';
     document.getElementById('btn-login').disabled = false;
   }
 });
-
-    try {
-      // 🔥 FORZAR ADMIN SIEMPRE
-      await userRef.set({
-        role: "admin",
-        email: user.email
-      }, { merge: true });
-
-      currentRole = "admin";
-
-      console.log("UID:", user.uid);
-      console.log("ROLE:", currentRole);
-
-      applyRole();
-      initListeners();
-
-    } catch (e) {
-      console.error("Error obteniendo rol:", e);
-      currentRole = 'operario';
-      applyRole();
-      initListeners();
-    }
-
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display = 'flex';
-    document.getElementById('user-name-display').textContent = user.email;
-
-  } else {
-    currentUser = null;
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app-screen').style.display = 'none';
-    document.getElementById('btn-login').innerHTML = 'Ingresar';
-    document.getElementById('btn-login').disabled = false;
-  }
-}); 
-
-    } catch (e) {
-      console.error("Error obteniendo rol:", e);
-      currentRole = 'operario';
-      applyRole();
-      initListeners();
-    }
-
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display = 'flex';
-    document.getElementById('user-name-display').textContent = user.email;
-
-  } else {
-    currentUser = null;
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app-screen').style.display = 'none';
-    document.getElementById('btn-login').innerHTML = 'Ingresar';
-    document.getElementById('btn-login').disabled = false;
-  }
-});
-
 function applyRole() {
   var badge = document.getElementById('role-badge');
   badge.textContent = currentRole === 'admin' ? 'Admin' : 'Operario';
