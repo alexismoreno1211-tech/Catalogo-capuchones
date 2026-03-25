@@ -278,6 +278,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
+<!-- TODO TU HTML IGUAL HASTA <script> -->
+
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyBhQ8vaJ1f4vPIWpwgEo706DXbRV-6vz6s",
   authDomain: "inventario-capuchones.firebaseapp.com",
@@ -290,32 +293,158 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const GITHUB_BASE = "https://raw.githubusercontent.com/alexismoreno1211-tech/Catalogo-capuchones/main";
 
 let currentUser = null;
 let currentRole = 'operario';
 let items = [];
-let filterBodega = 'todas';
-let editingId = null;
-let deleteId = null;
 let unsubItems = null;
 
-function getPhotoUrl(bodega, fotoNum, ext) {
-  return GITHUB_BASE + '/' + (bodega === 'b1' ? 'bodega1' : 'bodega2') + '/foto' + fotoNum + '.' + ext;
+// ================= LOGIN =================
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('btn-login');
+
+  err.textContent = '';
+  btn.innerHTML = 'Ingresando...';
+  btn.disabled = true;
+
+  auth.signInWithEmailAndPassword(email, pass).catch(e => {
+    err.textContent = 'Error de login';
+    btn.innerHTML = 'Ingresar';
+    btn.disabled = false;
+  });
+}
+window.doLogin = doLogin;
+
+function doLogout() {
+  if (unsubItems) unsubItems();
+  auth.signOut();
+}
+window.doLogout = doLogout;
+
+// ================= AUTH PRINCIPAL =================
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentUser = user;
+    const userRef = db.collection('users').doc(user.uid);
+
+    try {
+      const snap = await userRef.get();
+
+      if (!snap.exists) {
+        // 👇 CREA USUARIO SI NO EXISTE
+        await userRef.set({
+          role: "operario",
+          email: user.email
+        });
+        currentRole = "operario";
+      } else {
+        currentRole = snap.data().role || "operario";
+      }
+
+      /*
+      🔥 SI QUIERES FORZAR ADMIN (SOLO PRUEBAS)
+      await userRef.set({ role: "admin" }, { merge: true });
+      currentRole = "admin";
+      */
+
+    } catch (e) {
+      console.error(e);
+      currentRole = "operario";
+    }
+
+    applyRole();
+
+    // evitar listeners duplicados
+    if (unsubItems) unsubItems();
+
+    initListeners();
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'flex';
+    document.getElementById('user-name-display').textContent = user.email;
+
+  } else {
+    currentUser = null;
+
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
+
+    document.getElementById('btn-login').innerHTML = 'Ingresar';
+    document.getElementById('btn-login').disabled = false;
+  }
+});
+
+// ================= ROLES =================
+function applyRole() {
+  const badge = document.getElementById('role-badge');
+
+  badge.textContent = currentRole === 'admin' ? 'Admin' : 'Operario';
+  badge.className = 'badge-role ' + (currentRole === 'admin' ? 'badge-admin' : 'badge-operario');
+
+  const show = currentRole === 'admin' ? '' : 'none';
+
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = show;
+  });
 }
 
-function buildThumb(it) {
-  if (!it.foto) return '<div class="thumb-wrap"><span class="thumb-placeholder">📦</span></div>';
-  var url = getPhotoUrl(it.bodega, it.foto, 'jpg');
-  var u2 = getPhotoUrl(it.bodega, it.foto, 'jpeg');
-  var u3 = getPhotoUrl(it.bodega, it.foto, 'JPG');
-  var u4 = getPhotoUrl(it.bodega, it.foto, 'png');
-  return '<div class="thumb-wrap" onclick="openPhotoModal(\'' + it.id + '\')" title="Ver foto">' +
-    '<img src="' + url + '" alt="' + it.ref + '" ' +
-    'onerror="this.src=\'' + u2 + '\';this.onerror=function(){this.src=\'' + u3 + '\';this.onerror=function(){this.src=\'' + u4 + '\';this.onerror=function(){this.parentElement.innerHTML=\'<span class=thumb-placeholder>📦</span>\'}}}}">' +
-    '</div>';
+// ================= FIRESTORE =================
+function initListeners() {
+  const q = db.collection('inventario').orderBy('ref');
+
+  unsubItems = q.onSnapshot((snap) => {
+    items = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+
+    renderTable();
+    renderStats();
+  });
 }
 
+// ================= RENDER =================
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="8">Sin datos</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(it => `
+    <tr>
+      <td>${it.ref}</td>
+      <td>${it.color}</td>
+      <td>${it.bodega}</td>
+      <td>${it.stock || 0}</td>
+    </tr>
+  `).join('');
+}
+
+function renderStats() {
+  const total = items.reduce((a,b)=>a+(b.stock||0),0);
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-refs').textContent = items.length;
+}
+
+// ================= STOCK =================
+function adjustStock(id, dir) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+
+  const newStock = Math.max(0, (item.stock || 0) + dir);
+
+  db.collection('inventario').doc(id).update({
+    stock: newStock
+  });
+}
+window.adjustStock = adjustStock;
+
+</script>
 function openPhotoModal(id) {
   var it = items.find(function(i){return i.id===id;});
   if (!it || !it.foto) return;
