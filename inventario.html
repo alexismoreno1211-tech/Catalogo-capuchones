@@ -290,6 +290,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+db.settings({ host: "firestore.googleapis.com", ssl: true });
 const GITHUB_BASE = "https://raw.githubusercontent.com/alexismoreno1211-tech/Catalogo-capuchones/main";
 
 let currentUser = null;
