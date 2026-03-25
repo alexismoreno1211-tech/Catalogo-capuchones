@@ -4,55 +4,76 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventario Capuchones</title>
+<title>Inventario Capuchones PRO</title>
 
 <style>
-body{font-family:Arial;background:#0d0f14;color:#fff;margin:0}
-#login-screen,#app-screen{display:flex;align-items:center;justify-content:center;height:100vh}
-#app-screen{display:none;flex-direction:column}
-input,button{padding:10px;margin:5px}
-table{width:90%;border-collapse:collapse;margin-top:20px}
+:root{
+--bg:#0d0f14;--card:#161920;--accent:#e8ff47;--danger:#ff4757;--ok:#2ed573;--text:#fff
+}
+body{margin:0;font-family:Arial;background:var(--bg);color:var(--text)}
+.hidden{display:none}
+.container{padding:20px}
+input,button{padding:10px;margin:5px;border:none}
+button{cursor:pointer;background:var(--accent)}
+table{width:100%;border-collapse:collapse;margin-top:20px}
 td,th{border:1px solid #333;padding:10px;text-align:center}
-button{cursor:pointer}
+.badge{padding:5px 10px;font-size:12px}
+.admin{background:var(--accent);color:#000}
+.operario{background:#47b8ff}
 </style>
 </head>
 
 <body>
 
 <!-- LOGIN -->
-<div id="login-screen">
-  <div>
-    <h2>Login</h2>
-    <input type="email" id="login-email" placeholder="Correo"><br>
-    <input type="password" id="login-pass" placeholder="Contraseña"><br>
-    <button onclick="doLogin()">Ingresar</button>
-    <p id="login-error"></p>
-  </div>
+<div id="login">
+  <h2>Login</h2>
+  <input id="email" placeholder="correo">
+  <input id="pass" type="password" placeholder="contraseña">
+  <button onclick="login()">Entrar</button>
+  <p id="error"></p>
 </div>
 
 <!-- APP -->
-<div id="app-screen">
+<div id="app" class="hidden container">
+
   <h2>Inventario</h2>
-  <button onclick="doLogout()">Cerrar sesión</button>
+  <span id="rol" class="badge"></span>
+  <button onclick="logout()">Salir</button>
 
-  <br><br>
+  <hr>
 
-  <input type="text" id="ref" placeholder="Referencia">
-  <input type="text" id="color" placeholder="Color">
-  <input type="number" id="stock" placeholder="Stock">
-  <button onclick="addItem()">Agregar</button>
+  <!-- SOLO ADMIN -->
+  <div id="adminPanel" class="hidden">
+    <input id="ref" placeholder="Referencia">
+    <input id="color" placeholder="Color">
+    <input id="stock" type="number" placeholder="Stock">
+    <button onclick="add()">Agregar</button>
+  </div>
 
+  <!-- STATS -->
+  <h3>Estadísticas</h3>
+  <p>Total: <span id="total"></span></p>
+  <p>Stock bajo (<50): <span id="low"></span></p>
+  <p>Sin stock: <span id="zero"></span></p>
+
+  <!-- ALERTAS -->
+  <h3>Alertas</h3>
+  <div id="alertas"></div>
+
+  <!-- TABLA -->
   <table>
     <thead>
       <tr>
         <th>Ref</th>
         <th>Color</th>
         <th>Stock</th>
-        <th>Acción</th>
+        <th>Acciones</th>
       </tr>
     </thead>
     <tbody id="tabla"></tbody>
   </table>
+
 </div>
 
 <!-- FIREBASE -->
@@ -64,7 +85,7 @@ button{cursor:pointer}
 const firebaseConfig = {
   apiKey: "AIzaSyBhQ8vaJ1f4vPIWpwgEo706DXbRV-6vz6s",
   authDomain: "inventario-capuchones.firebaseapp.com",
-  projectId: "inventario-capuchones",
+  projectId: "inventario-capuchones"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -72,54 +93,69 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let items = [];
+let role = "operario";
 
 // LOGIN
-function doLogin(){
-  const email = document.getElementById('login-email').value;
-  const pass = document.getElementById('login-pass').value;
-
-  auth.signInWithEmailAndPassword(email, pass)
-  .catch(()=>document.getElementById('login-error').innerText="Error login");
+function login(){
+  auth.signInWithEmailAndPassword(
+    email.value, pass.value
+  ).catch(()=>error.innerText="Error login");
 }
 
 // LOGOUT
-function doLogout(){
-  auth.signOut();
-}
+function logout(){ auth.signOut(); }
 
 // SESION
-auth.onAuthStateChanged(user=>{
+auth.onAuthStateChanged(async user=>{
   if(user){
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app-screen').style.display='flex';
-    cargarDatos();
+
+    // 🔥 FORZAR ADMIN (puedes cambiar luego)
+    await db.collection("users").doc(user.uid).set({
+      role:"admin"
+    },{merge:true});
+
+    const doc = await db.collection("users").doc(user.uid).get();
+    role = doc.data().role || "operario";
+
+    rol.innerText = role.toUpperCase();
+    rol.className = "badge " + role;
+
+    if(role==="admin") adminPanel.classList.remove("hidden");
+
+    loginDiv(false);
+    cargar();
+
   }else{
-    document.getElementById('login-screen').style.display='flex';
-    document.getElementById('app-screen').style.display='none';
+    loginDiv(true);
   }
 });
 
-// AGREGAR
-function addItem(){
-  const ref = document.getElementById('ref').value;
-  const color = document.getElementById('color').value;
-  const stock = parseInt(document.getElementById('stock').value)||0;
-
-  db.collection("inventario").add({ref,color,stock});
+function loginDiv(show){
+  login.style.display = show?"block":"none";
+  app.classList.toggle("hidden",show);
 }
 
-// CARGAR
-function cargarDatos(){
-  db.collection("inventario").onSnapshot(snap=>{
-    items = snap.docs.map(d=>({id:d.id,...d.data()}));
-    render();
+// AGREGAR
+function add(){
+  db.collection("inventario").add({
+    ref:ref.value,
+    color:color.value,
+    stock:parseInt(stock.value)||0
   });
 }
 
-// MOSTRAR
-function render(){
-  const tabla = document.getElementById('tabla');
+// LISTENER
+function cargar(){
+  db.collection("inventario").onSnapshot(snap=>{
+    items = snap.docs.map(d=>({id:d.id,...d.data()}));
+    render();
+    stats();
+    alertasRender();
+  });
+}
 
+// RENDER
+function render(){
   tabla.innerHTML = items.map(i=>`
     <tr>
       <td>${i.ref}</td>
@@ -133,20 +169,46 @@ function render(){
   `).join('');
 }
 
-// SUMAR
+// STOCK
 function sumar(id){
-  const item = items.find(i=>i.id===id);
-  db.collection("inventario").doc(id).update({
-    stock:(item.stock||0)+1
+  const i = items.find(x=>x.id===id);
+  update(id, i.stock+1, "entrada");
+}
+
+function restar(id){
+  const i = items.find(x=>x.id===id);
+  update(id, Math.max(0,i.stock-1), "salida");
+}
+
+function update(id, stock, tipo){
+  const i = items.find(x=>x.id===id);
+
+  db.collection("inventario").doc(id).update({stock});
+
+  db.collection("historial").add({
+    ref:i.ref,
+    tipo,
+    cantidad:1,
+    fecha:firebase.firestore.FieldValue.serverTimestamp()
   });
 }
 
-// RESTAR
-function restar(id){
-  const item = items.find(i=>i.id===id);
-  db.collection("inventario").doc(id).update({
-    stock:Math.max(0,(item.stock||0)-1)
-  });
+// STATS
+function stats(){
+  total.innerText = items.reduce((a,b)=>a+b.stock,0);
+  low.innerText = items.filter(i=>i.stock>0 && i.stock<50).length;
+  zero.innerText = items.filter(i=>i.stock===0).length;
+}
+
+// ALERTAS
+function alertasRender(){
+  const al = items.filter(i=>i.stock<50);
+
+  alertas.innerHTML = al.map(i=>`
+    <p style="color:${i.stock==0?'red':'orange'}">
+      ${i.ref} (${i.stock})
+    </p>
+  `).join('');
 }
 </script>
 
