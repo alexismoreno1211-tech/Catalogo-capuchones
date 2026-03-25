@@ -384,12 +384,44 @@ auth.onAuthStateChanged(async function(user) {
         snap = await userRef.get();
       }
 
-    
 auth.onAuthStateChanged(async function(user) {
   if (user) {
     currentUser = user;
 
     const userRef = db.collection('users').doc(user.uid);
+
+    try {
+      // 🔥 FORZAR ADMIN SIEMPRE
+      await userRef.set({
+        role: "admin",
+        email: user.email
+      }, { merge: true });
+
+      currentRole = "admin";
+
+      console.log("UID:", user.uid);
+      console.log("ROLE:", currentRole);
+
+    } catch (e) {
+      console.error("Error obteniendo rol:", e);
+      currentRole = 'operario';
+    }
+
+    applyRole();
+    initListeners();
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'flex';
+    document.getElementById('user-name-display').textContent = user.email;
+
+  } else {
+    currentUser = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('btn-login').innerHTML = 'Ingresar';
+    document.getElementById('btn-login').disabled = false;
+  }
+});
 
     try {
       // 🔥 FORZAR ADMIN SIEMPRE
